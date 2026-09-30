@@ -7,7 +7,7 @@ Litera — кроссплатформенный книжный онлайн-ма
 Инструкция по локальному развертыванию инфраструктуры проекта:
 1. Клонирование основного репозитория вместе со всеми связанными подмодулями:
    ```bash
-   git clone --recurse-submodules [https://github.com/fpmi-hci-2026/Litera.git](https://github.com/fpmi-hci-2026/Litera.git)
+   git clone --recurse-submodules https://github.com/fpmi-hci-2026/Litera.git
    cd Litera
 
 
