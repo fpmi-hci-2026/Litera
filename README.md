@@ -10,7 +10,6 @@ Litera — кроссплатформенный книжный онлайн-ма
    git clone --recurse-submodules https://github.com/fpmi-hci-2026/Litera.git
    cd Litera
 
-
 2. Инициализация и синхронизация подмодулей (если репозиторий уже был клонирован без флага --recurse-submodules):
    git submodule update --init --recursive
    
@@ -19,13 +18,17 @@ Litera — кроссплатформенный книжный онлайн-ма
 Sub modules
 
 ⚬ Litera-Web — фронтенд-приложение онлайн-магазина (веб-каталог, корзина, оформление заказов).
+
 ⚬ Litera-Server — серверная часть, бизнес-логика обработки заказов и REST API.
+
 ⚬ Litera-Mobile — мобильный клиент книжного магазина для операционных систем Android/iOS.
 
 Usage
 
 ⚬ Веб-версия витрины магазина доступна локально по адресу: http://localhost:3000.
+
 ⚬ Серверный API и Swagger-документация доступны по адресу: http://localhost:8000/api/docs.
+
 ⚬ Документация и отчёты по проектированию интерфейсов опубликованы на GitHub Pages: https://fpmi-hci-2026.github.io/Litera/.
 
 Contributing
