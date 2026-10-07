@@ -56,31 +56,7 @@
 
 #### Карта сайта (Sitemap — глубина ≥ 3 уровней)
 
-```mermaid
-graph TD
-    Home[Главная страница] --> Catalog[Каталог книг]
-    Home --> Preorders[Предзаказы новинок]
-    Home --> Promos[Акции и Скидки]
-    Home --> Cart[Корзина]
-    Home --> Cabinet[Личный кабинет]
-    Home --> Help[Помощь и доставка]
-
-    Catalog --> GenreLevel[Тематические жанры]
-    GenreLevel --> SubGenre[Поджанры / Серии]
-    SubGenre --> BookCard[Карточка книги]
-
-    BookCard --> PreviewReader[Ознакомительный фрагмент]
-    BookCard --> Reviews[Отзывы и рецензии]
-
-    Cart --> Checkout[Оформление заказа]
-    Checkout --> DeliveryStep[Выбор доставки]
-    Checkout --> PaymentStep[Оплата онлайн]
-    PaymentStep --> OrderConfirmation[Подтверждение заказа]
-
-    Cabinet --> OrderHistory[История заказов]
-    Cabinet --> Wishlist[Список Избранное]
-    Cabinet --> ProfileSettings[Персональные данные]
-```
+![Карта сайта (Sitemap)](./images/Sitemap.png)
 
 ### 3.2. Система именования
 
@@ -158,46 +134,15 @@ graph TD
 
 ### 4.1. Навигационная модель ключевого персонажа (Алексей, Студент)
 
-```mermaid
-graph LR
-    Main[Главная] --> Search[Поисковый инпут на баннере]
-    Search --> Catalog[Каталог / Выдача]
-    Catalog --> BookPage[Карточка книги с разворотом]
-    BookPage --> QuickBuy[Кнопка 'Заказать онлайн']
-    QuickBuy --> CartView[Корзина]
-    CartView --> OrderStatus[Оформление заказа]
-```
+![Навигационная модель Алексея](./images/alex_way.png)
 
 ### 4.2. Навигационная модель менеджера склада (Марина)
 
-```mermaid
-graph LR
-    Login[Авторизация] --> Dashboard[Раздел 'Продавцы' / Очередь заказов]
-    Dashboard --> FilterOrders[Фильтр по статусу Оплачен]
-    FilterOrders --> BatchSelect[Массовый выбор позиций]
-    BatchSelect --> PrintInvoice[Печать листа сборки]
-    PrintInvoice --> StatusUpdate[Смена статуса на В сборке]
-```
+![Навигационная модель Марины](./images/marina_way.png)
 
 ### 4.3. Общая совокупная диаграмма путей системы
 
-```mermaid
-graph TD
-    User([Пользователь]) --> EntryPoint{Точка входа}
-    EntryPoint --> DirectSearch[Поиск на Hero-баннере]
-    EntryPoint --> CatalogBrowse[Каталог: Романы / Переводы / Детские]
-    EntryPoint --> PromoClick[Витрина 'Наш выбор']
-
-    DirectSearch --> CatalogBrowse
-    PromoClick --> BookPage[Карточка книги с разворотом]
-    CatalogBrowse --> BookPage
-
-    BookPage --> CartAdd[Добавить в корзину / Заказать онлайн]
-    CartAdd --> CartView[Экран 'Ваша корзина']
-    CartView --> CheckoutFlow[Кнопка 'Оформить заказ']
-    CheckoutFlow --> PaymentGateway[Оплата картой]
-    PaymentGateway --> SuccessOrder[Заказ оформлен]
-```
+![Общая совокупная диаграмма путей](./images/common_way.png)
 
 ---
 
@@ -207,23 +152,7 @@ graph TD
 
 Карта связывает стратегическую бизнес-цель интернет-магазина с поведением действующих лиц и конкретными функциональными решениями:
 
-```mermaid
-graph LR
-    Goal[Бизнес-цель: Сократить брошенные корзины до < 5% и поднять мобильную конверсию на 25%] --> Actors[Действующие лица]
-    Actors --> A1[Студент Алексей]
-    Actors --> A2[Коллекционер Валерий]
-    Actors --> A3[Менеджер Марина]
-
-    A1 --> Imp1[Быстро покупает без навязчивой рекламы]
-    A1 --> Imp2[Не теряет корзину при звонках и сбоях сети]
-    A2 --> Imp3[Уверен в полиграфическом качестве издания]
-    A3 --> Imp4[Не допускает отмен заказов из-за пересортицы]
-
-    Imp1 --> Deliverable1[Отказ от модальных спам-окон, чекаут в 2 шага]
-    Imp2 --> Deliverable2[Кэширование корзины в LocalStorage смартфона]
-    Imp3 --> Deliverable3[Полноразмерный фоторазворот издания и детальное описание]
-    Imp4 --> Deliverable4[Отображение наличия по филиалам сети в реальном времени]
-```
+![Карта влияния (Impact Map)](./images/Impact_Map.png)
 
 ### 5.2. Карта пути клиента (Customer Journey Map — CJM)
 
