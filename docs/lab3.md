@@ -151,7 +151,7 @@
 #### Вариант на языке PlantUML
 ![Диаграмма прецедентов PlantUML](./images/puml_use_case_core.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код PlantUML (Use Case)</summary>
 
 ```plantuml
@@ -184,8 +184,8 @@ User --> UC_Checkout
 User --> UC_Track
 User --> UC_Profile
 
-UC_Checkout ..> UC_Pay : <<include>>
-UC_Checkout ..> UC_Cart : <<include>>
+UC_Checkout ..> UC_Pay : «include»
+UC_Checkout ..> UC_Cart : «include»
 
 Manager --> UC_ManageOrders
 Manager --> UC_Inventory
@@ -201,7 +201,7 @@ Admin --> UC_AdminBooks
 #### Вариант на языке Mermaid
 ![Диаграмма прецедентов Mermaid](./images/mermaid_use_case.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код Mermaid (Use Case)</summary>
 
 ```mermaid
@@ -320,7 +320,7 @@ flowchart LR
 #### Диаграмма последовательности на языке Mermaid (Sequence Diagram)
 ![Диаграмма последовательности Mermaid](./images/mermaid_sequence.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код Mermaid (Sequence Diagram)</summary>
 
 ```mermaid
@@ -352,7 +352,7 @@ sequenceDiagram
 #### Процесс оформления и онлайн-оплаты заказа (Checkout)
 ![Диаграмма деятельности Оформление заказа](./images/puml_activity_checkout.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код PlantUML (Activity Checkout)</summary>
 
 ```plantuml
@@ -397,7 +397,7 @@ stop
 #### Процесс сборки заказа на складе по штрихкоду
 ![Диаграмма деятельности Сборка заказа](./images/puml_activity_warehouse.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код PlantUML (Activity Warehouse)</summary>
 
 ```plantuml
@@ -429,7 +429,7 @@ stop
 #### Офлайн-чтение и фоновая синхронизация прогресса
 ![Диаграмма деятельности Офлайн чтение](./images/puml_activity_sync.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код PlantUML (Activity Offline Sync)</summary>
 
 ```plantuml
@@ -460,7 +460,7 @@ stop
 #### Доменная модель предметной области (PlantUML)
 ![Диаграмма классов Доменная модель](./images/puml_class_domain.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код PlantUML (Domain Class Diagram)</summary>
 
 ```plantuml
@@ -562,7 +562,7 @@ Branch "0..1" <-- "0..*" Order : destination
 #### Доменная модель на языке Mermaid
 ![Диаграмма классов Mermaid](./images/mermaid_class.png)
 
-<details>
+<details markdown="1">
 <summary>Показать исходный код Mermaid (Class Diagram)</summary>
 
 ```mermaid
@@ -661,7 +661,7 @@ classDiagram
 #### Сценарий 1: Аутентификация и выпуск JWT токенов
 ![Sequence Auth](./images/puml_seq_auth.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Sequence Auth)</summary>
 
 ```plantuml
@@ -696,7 +696,7 @@ end
 #### Сценарий 2: Оформление заказа и онлайн-оплата
 ![Sequence Payment](./images/puml_seq_payment.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Sequence Payment)</summary>
 
 ```plantuml
@@ -738,7 +738,7 @@ end
 #### Сценарий 3: Комплектация заказа на складе по штрихкоду
 ![Sequence Warehouse](./images/puml_seq_warehouse.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Sequence Warehouse)</summary>
 
 ```plantuml
@@ -781,7 +781,7 @@ TSD --> Worker: Статус заказа изменен. Наклейка с к
 #### Сценарий 4: Интеллектуальный поиск в каталоге с кэшированием
 ![Sequence Search](./images/puml_seq_search.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Sequence Search)</summary>
 
 ```plantuml
@@ -817,7 +817,7 @@ UI --> User: Отображение результатов с подсветко
 #### Сценарий 5: Офлайн-корзина и синхронизация при переподключении
 ![Sequence Sync Cart](./images/puml_seq_sync_cart.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Sequence Sync Cart)</summary>
 
 ```plantuml
@@ -870,7 +870,7 @@ App --> MUser: Уведомление: "Корзина синхронизиро�
 Отражает распределение обязанностей между клиентскими приложениями, шлюзом, микросервисами бэкенда и брокером сообщений.
 ![Диаграмма компонентов](./images/puml_component_arch.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Component Diagram)</summary>
 
 ```plantuml
@@ -939,15 +939,15 @@ MQ --> NotifService : Consume
 Реляционная структура данных PostgreSQL, отражающая учет товаров, филиалов, заказов и остатков.
 ![ERD База данных](./images/puml_erd_database.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (ERD)</summary>
 
 ```plantuml
 @startuml
 entity "users" as users {
-  * id : uuid <<PK>>
+  * id : uuid «PK»
   --
-  * email : varchar(255) <<UNIQUE>>
+  * email : varchar(255) «UNIQUE»
   * password_hash : varchar(255)
   * full_name : varchar(150)
   phone : varchar(20)
@@ -956,9 +956,9 @@ entity "users" as users {
 }
 
 entity "books" as books {
-  * id : uuid <<PK>>
+  * id : uuid «PK»
   --
-  * isbn : varchar(20) <<UNIQUE>>
+  * isbn : varchar(20) «UNIQUE»
   * title : varchar(255)
   * author : varchar(255)
   * price : numeric(10,2)
@@ -970,7 +970,7 @@ entity "books" as books {
 }
 
 entity "branches" as branches {
-  * id : uuid <<PK>>
+  * id : uuid «PK»
   --
   * name : varchar(100)
   * address : varchar(255)
@@ -979,20 +979,20 @@ entity "branches" as branches {
 }
 
 entity "stock_items" as stock_items {
-  * id : uuid <<PK>>
+  * id : uuid «PK»
   --
-  * book_id : uuid <<FK>>
-  * branch_id : uuid <<FK>>
+  * book_id : uuid «FK»
+  * branch_id : uuid «FK»
   * quantity : int
   * reserved : int
 }
 
 entity "orders" as orders {
-  * id : uuid <<PK>>
+  * id : uuid «PK»
   --
-  * order_number : varchar(50) <<UNIQUE>>
-  * user_id : uuid <<FK>>
-  branch_id : uuid <<FK>>
+  * order_number : varchar(50) «UNIQUE»
+  * user_id : uuid «FK»
+  branch_id : uuid «FK»
   * status : varchar(40)
   * payment_method : varchar(40)
   * total_price : numeric(10,2)
@@ -1001,10 +1001,10 @@ entity "orders" as orders {
 }
 
 entity "order_items" as order_items {
-  * id : uuid <<PK>>
+  * id : uuid «PK»
   --
-  * order_id : uuid <<FK>>
-  * book_id : uuid <<FK>>
+  * order_id : uuid «FK»
+  * book_id : uuid «FK»
   * quantity : int
   * unit_price : numeric(10,2)
 }
@@ -1035,7 +1035,7 @@ branches ||--o{ orders : "pickup at"
 #### Спецификация EventStorming
 ![Диаграмма EventStorming](./images/puml_event_storming.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (EventStorming)</summary>
 
 ```plantuml
@@ -1108,7 +1108,7 @@ package "Bounded Context: Склад и Доставка" {
 #### Спецификация Event Modeling
 ![Диаграмма Event Modeling](./images/puml_event_modeling.png)
 
-<details>
+<details markdown="1">
 <summary>Исходный код PlantUML (Event Modeling)</summary>
 
 ```plantuml
