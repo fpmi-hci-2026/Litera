@@ -1,0 +1,121 @@
+
+# ==============================================================================
+# Litera Project Infrastructure Orchestration
+# Course: Human-Computer Interaction Design (HCI) / BSU FAMCS 2026
+# Authors: Kirill Zaidal, Anna-Maria Savitskaya (Group 12)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Primary PostgreSQL 16 Relational Database
+  # ----------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: litera_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: litera_user
+      POSTGRES_PASSWORD: litera_secret_password
+      POSTGRES_DB: litera_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litera_user -d litera_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - litera_network
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis In-Memory Cache (Sessions, Tokens, Caching)
+  # ----------------------------------------------------------------------------
+  cache:
+    image: redis:7-alpine
+    container_name: litera_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - litera_network
+
+  # ----------------------------------------------------------------------------
+  # 3. REST API Mock Server (Prism OpenAPI 3.0 Mocking Engine)
+  # ----------------------------------------------------------------------------
+  api-mock:
+    image: stoplight/prism:5
+    container_name: litera_api_mock
+    restart: unless-stopped
+    command: mock -h 0.0.0.0 /api/openapi.yaml
+    ports:
+      - "8000:4010"
+    volumes:
+      - ./api/openapi.yaml:/api/openapi.yaml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - litera_network
+
+  # ----------------------------------------------------------------------------
+  # 4. Interactive OpenAPI / Swagger UI Visualizer
+  # ----------------------------------------------------------------------------
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: litera_swagger_ui
+    restart: unless-stopped
+    environment:
+      SWAGGER_JSON: /openapi.yaml
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api/openapi.yaml:/openapi.yaml:ro
+    networks:
+      - litera_network
+
+  # ----------------------------------------------------------------------------
+  # 5. Litera Model Context Protocol (MCP) Server
+  # ----------------------------------------------------------------------------
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: litera_mcp_server
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: "postgresql://litera_user:litera_secret_password@db:5432/litera_db"
+      REDIS_URL: "redis://cache:6379/0"
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    networks:
+      - litera_network
+
+volumes:
+  pgdata:
+    name: litera_pgdata
+  redisdata:
+    name: litera_redisdata
+
+networks:
+  litera_network:
+    name: litera_network
+    driver: bridge

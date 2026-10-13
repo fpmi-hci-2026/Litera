@@ -1,0 +1,1664 @@
+openapi: 3.0.3
+info:
+  title: Litera API — Кроссплатформенный книжный онлайн-магазин
+  description: |
+    Официальная спецификация REST API программного комплекса **«Litera»** (Web, Mobile, Server).
+    Курс: «Проектирование человеко-машинных интерфейсов», ФПМИ БГУ, 2026 г.
+    Авторы: Зайдаль Кирилл Андреевич, Савицкая Анна-Мария Алексеевна (группа 12).
+    
+    API предоставляет возможности поиска и фильтрации книг, чтения ознакомительных фрагментов,
+    управления корзиной с кросс-девайсной синхронизацией, оформления и онлайн-оплаты заказов,
+    а также складского учета и адресной комплектации товаров по штрихкодам.
+  version: 1.0.0
+  contact:
+    name: Команда разработки Litera
+    email: dev@litera.by
+    url: https://github.com/fpmi-hci-2026/Litera
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Локальный сервер разработки (Docker / Local backend)
+  - url: https://api.litera.by/api/v1
+    description: Продакшн шлюз API Gateway
+
+tags:
+  - name: Authentication
+    description: Регистрация, аутентификация и управление JWT токенами
+  - name: Books & Catalog
+    description: Поиск, фильтрация, карточки изданий и чтение ознакомительных фрагментов
+  - name: Categories
+    description: Тематический рубрикатор и классификация изданий
+  - name: Cart
+    description: Управление корзиной покупок и кросс-девайсная синхронизация
+  - name: Orders
+    description: Жизненный цикл заказов (создание, оплата, отслеживание, отмена)
+  - name: Inventory & Warehouse
+    description: Учет остатков по филиалам, проверка наличия и комплектация
+  - name: Branches
+    description: Точки самовывоза, магазины сети и центральные логистические хабы
+
+paths:
+  # ============================================================================
+  # 1. AUTHENTICATION
+  # ============================================================================
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Регистрация нового покупателя
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        '201':
+          description: Учетная запись успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          description: Пользователь с таким email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Вход в систему и получение JWT токенов
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Обновление пары JWT токенов
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Токены успешно обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Получение профиля текущего пользователя
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Данные профиля авторизованного пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ============================================================================
+  # 2. BOOKS & CATALOG
+  # ============================================================================
+  /books:
+    get:
+      tags:
+        - Books & Catalog
+      summary: Полнотекстовый поиск и фасетная фильтрация книг
+      operationId: listBooks
+      parameters:
+        - name: q
+          in: query
+          description: Поисковый запрос (название, автор, ISBN)
+          required: false
+          schema:
+            type: string
+            example: чистый код
+        - name: category_id
+          in: query
+          description: Идентификатор рубрики
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: branch_id
+          in: query
+          description: Фильтр по наличию в конкретном филиале (самовывоз сегодня)
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: min_price
+          in: query
+          schema:
+            type: number
+            example: 20.0
+        - name: max_price
+          in: query
+          schema:
+            type: number
+            example: 100.0
+        - name: in_stock
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - name: sort
+          in: query
+          description: Поле и направление сортировки
+          schema:
+            type: string
+            enum: [popularity, price_asc, price_desc, rating, newest]
+            default: popularity
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список найденных книг с метаданными пагинации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+    post:
+      tags:
+        - Books & Catalog
+      summary: Добавление новой книги (Администратор / Контент-менеджер)
+      operationId: createBook
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreateRequest'
+      responses:
+        '201':
+          description: Книга успешно добавлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /books/{id}:
+    get:
+      tags:
+        - Books & Catalog
+      summary: Получение детальной карточки книги
+      operationId: getBookById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Полная информация о книге
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDetail'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Books & Catalog
+      summary: Редактирование карточки книги
+      operationId: updateBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreateRequest'
+      responses:
+        '200':
+          description: Карточка обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Books & Catalog
+      summary: Удаление книги из каталога
+      operationId: deleteBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Книга успешно удалена
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /books/{id}/preview:
+    get:
+      tags:
+        - Books & Catalog
+      summary: Получение данных для встроенного ридера ознакомительного фрагмента
+      operationId: getBookPreview
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Метаданные и защищенный поток страниц превью
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookPreviewResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ============================================================================
+  # 3. CATEGORIES
+  # ============================================================================
+  /categories:
+    get:
+      tags:
+        - Categories
+      summary: Получение списка рубрик и жанров
+      operationId: listCategories
+      responses:
+        '200':
+          description: Дерево категорий каталога
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  # ============================================================================
+  # 4. CART
+  # ============================================================================
+  /cart:
+    get:
+      tags:
+        - Cart
+      summary: Получение состава корзины
+      operationId: getCart
+      parameters:
+        - name: session_id
+          in: header
+          description: Идентификатор гостевой корзины (если не авторизован)
+          required: false
+          schema:
+            type: string
+      security:
+        - {}
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Текущее состояние корзины с расчетом итогов и скидок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+
+  /cart/items:
+    post:
+      tags:
+        - Cart
+      summary: Добавление книги в корзину
+      operationId: addToCart
+      parameters:
+        - name: session_id
+          in: header
+          required: false
+          schema:
+            type: string
+      security:
+        - {}
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemRequest'
+      responses:
+        '200':
+          description: Товар добавлен / количество обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          description: Превышен доступный остаток на складе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart/items/{id}:
+    patch:
+      tags:
+        - Cart
+      summary: Изменение количества экземпляров товара в корзине
+      operationId: updateCartItemQuantity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quantity
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+                  maximum: 99
+                  example: 3
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Cart
+      summary: Удаление позиции из корзины
+      operationId: removeCartItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /cart/sync:
+    post:
+      tags:
+        - Cart
+      summary: Синхронизация локальной гостевой корзины с аккаунтом после входа
+      operationId: syncCart
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guest_items
+              properties:
+                guest_items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CartItemRequest'
+      responses:
+        '200':
+          description: Объединенная корзина клиента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+
+  # ============================================================================
+  # 5. ORDERS
+  # ============================================================================
+  /orders:
+    get:
+      tags:
+        - Orders
+      summary: Получение истории заказов текущего пользователя
+      operationId: listOrders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Реестр оформленных заказов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      tags:
+        - Orders
+      summary: Оформление нового заказа (Чекаут)
+      operationId: createOrder
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+      responses:
+        '201':
+          description: Заказ успешно создан и ожидает оплаты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Недостаточно остатков или некорректный адрес
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /orders/{id}:
+    get:
+      tags:
+        - Orders
+      summary: Получение детального статуса и состава заказа
+      operationId: getOrderById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о заказе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /orders/{id}/cancel:
+    post:
+      tags:
+        - Orders
+      summary: Отмена заказа с валидацией текущей стадии исполнения
+      description: |
+        Отмена допускается только для заказов в статусах `PENDING_PAYMENT`, `PAID` или `PROCESSING`.
+        Если заказ уже передан курьеру (`SHIPPED`) или вручен (`DELIVERED`), API возвращает код `409 Conflict`.
+      operationId: cancelOrder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCancelRequest'
+      responses:
+        '200':
+          description: Заказ успешно отменен, зарезервированные остатки возвращены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          description: Конфликт статуса — заказ уже отгружен либо доставлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}/pay:
+    post:
+      tags:
+        - Orders
+      summary: Инициализация онлайн-платежа через банковский шлюз
+      operationId: payOrder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - payment_method
+              properties:
+                payment_method:
+                  type: string
+                  enum: [CARD_ONLINE, SBP, BONUS_POINTS]
+                  example: CARD_ONLINE
+                return_url:
+                  type: string
+                  format: uri
+                  example: https://litera.by/checkout/success
+      responses:
+        '200':
+          description: Платежная сессия сформирована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentSessionResponse'
+        '409':
+          description: Заказ уже оплачен или отменен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}/status:
+    patch:
+      tags:
+        - Orders
+      summary: Обновление статуса заказа (Склад / Логистика)
+      operationId: updateOrderStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  $ref: '#/components/schemas/OrderStatus'
+                comment:
+                  type: string
+                  example: Заказ упакован в коробку №4 и передан курьеру
+      responses:
+        '200':
+          description: Статус успешно обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  # ============================================================================
+  # 6. INVENTORY & WAREHOUSE
+  # ============================================================================
+  /inventory:
+    get:
+      tags:
+        - Inventory & Warehouse
+      summary: Мониторинг складских остатков по всей сети филиалов
+      operationId: listInventory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: book_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: low_stock_threshold
+          in: query
+          description: Фильтр позиций с остатком менее указанного порога
+          schema:
+            type: integer
+            example: 5
+      responses:
+        '200':
+          description: Реестр складских остатков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockItem'
+
+  /inventory/{book_id}:
+    get:
+      tags:
+        - Inventory & Warehouse
+      summary: Проверка остатков конкретной книги по всем точкам
+      operationId: checkBookInventory
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Наличие книги в филиалах и хабах
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookAvailability'
+
+  /inventory/adjust:
+    post:
+      tags:
+        - Inventory & Warehouse
+      summary: Корректировка остатков и проведение инвентаризации
+      operationId: adjustInventory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryAdjustRequest'
+      responses:
+        '200':
+          description: Остаток успешно скорректирован с записью в аудит-лог
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockItem'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  # ============================================================================
+  # 7. BRANCHES
+  # ============================================================================
+  /branches:
+    get:
+      tags:
+        - Branches
+      summary: Получение списка филиалов и пунктов самовывоза
+      operationId: listBranches
+      responses:
+        '200':
+          description: Список активных филиалов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Branch'
+
+  /branches/{id}:
+    get:
+      tags:
+        - Branches
+      summary: Получение подробной информации о филиале
+      operationId: getBranchById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+# ============================================================================
+# COMPONENTS & SCHEMAS
+# ============================================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Передайте заголовок Authorization: Bearer <JWT_ACCESS_TOKEN>"
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API-ключ для межсервисной интеграции и MCP-сервера
+
+  responses:
+    BadRequestError:
+      description: Неверные параметры запроса или ошибки валидации DTO
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 400
+            error: BAD_REQUEST
+            message: Переданы некорректные входные данные
+            timestamp: '2026-10-13T20:30:00Z'
+            details:
+              - field: email
+                issue: Недопустимый формат адреса электронной почты
+
+    UnauthorizedError:
+      description: Требуется валидный JWT токен аутентификации
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 401
+            error: UNAUTHORIZED
+            message: Токен доступа истек или не предоставлен
+            timestamp: '2026-10-13T20:30:00Z'
+
+    ForbiddenError:
+      description: Недостаточно прав для выполнения операции
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 403
+            error: FORBIDDEN
+            message: Роль пользователя не имеет доступа к складским операциям
+            timestamp: '2026-10-13T20:30:00Z'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 404
+            error: NOT_FOUND
+            message: Книга с указанным идентификатором не найдена
+            timestamp: '2026-10-13T20:30:00Z'
+
+  schemas:
+    # ------------------ ENUMS ------------------
+    UserRole:
+      type: string
+      enum: [GUEST, CUSTOMER, WAREHOUSE_MANAGER, CONTENT_MANAGER, ADMIN]
+      example: CUSTOMER
+
+    OrderStatus:
+      type: string
+      enum: [PENDING_PAYMENT, PAID, PROCESSING, PACKED, SHIPPED, DELIVERED, CANCELLED, REFUNDED]
+      example: PROCESSING
+
+    PaymentMethod:
+      type: string
+      enum: [CARD_ONLINE, SBP, CASH_ON_DELIVERY, BONUS_POINTS]
+      example: CARD_ONLINE
+
+    PaymentStatus:
+      type: string
+      enum: [PENDING, AUTHORIZED, CAPTURED, FAILED, REFUNDED]
+      example: CAPTURED
+
+    DeliveryType:
+      type: string
+      enum: [COURIER, PICKUP_BRANCH, POSTAL_SERVICE]
+      example: PICKUP_BRANCH
+
+    BookFormat:
+      type: string
+      enum: [HARDCOVER, PAPERBACK, EBOOK, AUDIOBOOK]
+      example: HARDCOVER
+
+    # ------------------ USERS ------------------
+    UserRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - full_name
+      properties:
+        email:
+          type: string
+          format: email
+          example: customer@litera.by
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: SecretPassword123!
+        full_name:
+          type: string
+          example: Анна-Мария Савицкая
+        phone:
+          type: string
+          example: '+375449876543'
+
+    UserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: customer@litera.by
+        password:
+          type: string
+          format: password
+          example: SecretPassword123!
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refresh_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Время жизни access токена в секундах (900 = 15 мин)
+          example: 900
+
+    AuthResponse:
+      type: object
+      required:
+        - user
+        - tokens
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        tokens:
+          $ref: '#/components/schemas/TokenResponse'
+
+    UserProfile:
+      type: object
+      required:
+        - id
+        - email
+        - full_name
+        - role
+        - bonus_balance
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 22222222-2222-2222-2222-222222222203
+        email:
+          type: string
+          example: customer@litera.by
+        full_name:
+          type: string
+          example: Анна-Мария Савицкая
+        phone:
+          type: string
+          example: '+375449876543'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        bonus_balance:
+          type: integer
+          example: 350
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-13T10:00:00Z'
+
+    # ------------------ CATEGORIES & BOOKS ------------------
+    Category:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 11111111-1111-1111-1111-111111111101
+        name:
+          type: string
+          example: Программирование и IT
+        slug:
+          type: string
+          example: it-and-programming
+        description:
+          type: string
+          example: Литература по разработке ПО и архитектуре
+
+    Book:
+      type: object
+      required:
+        - id
+        - isbn
+        - title
+        - author
+        - price
+        - format
+        - rating
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 44444444-4444-4444-4444-444444444401
+        isbn:
+          type: string
+          example: 978-5-4461-0923-4
+        title:
+          type: string
+          example: 'Чистый код: создание, анализ и рефакторинг'
+        author:
+          type: string
+          example: Роберт Мартин
+        category_id:
+          type: string
+          format: uuid
+          example: 11111111-1111-1111-1111-111111111101
+        price:
+          type: number
+          format: float
+          example: 65.50
+        discount_price:
+          type: number
+          format: float
+          nullable: true
+          example: 58.90
+        cover_url:
+          type: string
+          example: https://cdn.litera.by/covers/clean-code.jpg
+        preview_pdf_url:
+          type: string
+          example: https://cdn.litera.by/previews/clean-code-preview.pdf
+        format:
+          $ref: '#/components/schemas/BookFormat'
+        rating:
+          type: number
+          example: 4.90
+        reviews_count:
+          type: integer
+          example: 42
+        publication_year:
+          type: integer
+          example: 2023
+        pages:
+          type: integer
+          example: 464
+
+    BookDetail:
+      allOf:
+        - $ref: '#/components/schemas/Book'
+        - type: object
+          properties:
+            description:
+              type: string
+              example: Классическое руководство по написанию чистого, расширяемого и поддерживаемого программного кода.
+            total_stock:
+              type: integer
+              example: 40
+            available_branches:
+              type: array
+              items:
+                $ref: '#/components/schemas/BranchStockSummary'
+
+    BookCreateRequest:
+      type: object
+      required:
+        - isbn
+        - title
+        - author
+        - price
+      properties:
+        isbn:
+          type: string
+          example: 978-5-4461-0923-4
+        title:
+          type: string
+          example: 'Чистый код: создание, анализ и рефакторинг'
+        author:
+          type: string
+          example: Роберт Мартин
+        category_id:
+          type: string
+          format: uuid
+        price:
+          type: number
+          example: 65.50
+        discount_price:
+          type: number
+          nullable: true
+        cover_url:
+          type: string
+        preview_pdf_url:
+          type: string
+        description:
+          type: string
+        publication_year:
+          type: integer
+        pages:
+          type: integer
+        format:
+          $ref: '#/components/schemas/BookFormat'
+
+    BookListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+        - total_pages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+        total:
+          type: integer
+          example: 120
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 6
+
+    BookPreviewResponse:
+      type: object
+      required:
+        - book_id
+        - title
+        - author
+        - preview_pages_count
+        - stream_url
+      properties:
+        book_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: 'Чистый код: создание, анализ и рефакторинг'
+        author:
+          type: string
+          example: Роберт Мартин
+        preview_pages_count:
+          type: integer
+          example: 24
+        stream_url:
+          type: string
+          example: https://reader.litera.by/stream/preview/44444444-4444-4444-4444-444444444401.epub
+        call_to_action:
+          type: object
+          properties:
+            price:
+              type: number
+              example: 58.90
+            currency:
+              type: string
+              example: BYN
+
+    # ------------------ BRANCHES & INVENTORY ------------------
+    Branch:
+      type: object
+      required:
+        - id
+        - name
+        - address
+        - city
+        - work_hours
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 33333333-3333-3333-3333-333333333302
+        name:
+          type: string
+          example: Филиал «ТЦ Галерея»
+        address:
+          type: string
+          example: пр-т Победителей, 9
+        city:
+          type: string
+          example: Минск
+        phone:
+          type: string
+          example: '+375173002233'
+        work_hours:
+          type: string
+          example: 10:00 - 22:00
+        latitude:
+          type: number
+          example: 53.908520
+        longitude:
+          type: number
+          example: 27.548860
+        is_warehouse:
+          type: boolean
+          example: false
+
+    StockItem:
+      type: object
+      required:
+        - id
+        - book_id
+        - branch_id
+        - quantity
+        - reserved
+        - available
+      properties:
+        id:
+          type: string
+          format: uuid
+        book_id:
+          type: string
+          format: uuid
+        branch_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          example: 15
+        reserved:
+          type: integer
+          example: 2
+        available:
+          type: integer
+          example: 13
+        shelf_location:
+          type: string
+          example: A-12-04
+        updated_at:
+          type: string
+          format: date-time
+
+    BranchStockSummary:
+      type: object
+      properties:
+        branch_id:
+          type: string
+          format: uuid
+        branch_name:
+          type: string
+          example: Филиал «ТЦ Галерея»
+        available_quantity:
+          type: integer
+          example: 5
+        can_pickup_today:
+          type: boolean
+          example: true
+
+    BookAvailability:
+      type: object
+      required:
+        - book_id
+        - total_available
+        - branches
+      properties:
+        book_id:
+          type: string
+          format: uuid
+        total_available:
+          type: integer
+          example: 40
+        branches:
+          type: array
+          items:
+            $ref: '#/components/schemas/BranchStockSummary'
+
+    InventoryAdjustRequest:
+      type: object
+      required:
+        - stock_item_id
+        - action
+        - delta_quantity
+      properties:
+        stock_item_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum: [RESTOCK, WRITE_OFF, AUDIT_ADJUSTMENT]
+        delta_quantity:
+          type: integer
+          example: 10
+        note:
+          type: string
+          example: Поступление партии от издательства Питер
+
+    # ------------------ CART ------------------
+    CartItemRequest:
+      type: object
+      required:
+        - book_id
+        - quantity
+      properties:
+        book_id:
+          type: string
+          format: uuid
+          example: 44444444-4444-4444-4444-444444444401
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+
+    CartItemResponse:
+      type: object
+      required:
+        - id
+        - book
+        - quantity
+        - item_total
+      properties:
+        id:
+          type: string
+          format: uuid
+        book:
+          $ref: '#/components/schemas/Book'
+        quantity:
+          type: integer
+          example: 2
+        item_total:
+          type: number
+          example: 117.80
+
+    CartResponse:
+      type: object
+      required:
+        - items
+        - items_count
+        - subtotal
+        - discount_total
+        - total_price
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItemResponse'
+        items_count:
+          type: integer
+          example: 2
+        subtotal:
+          type: number
+          example: 131.00
+        discount_total:
+          type: number
+          example: 13.20
+        total_price:
+          type: number
+          example: 117.80
+
+    # ------------------ ORDERS ------------------
+    OrderCreateRequest:
+      type: object
+      required:
+        - delivery_type
+        - payment_method
+        - contact_phone
+        - contact_name
+        - items
+      properties:
+        delivery_type:
+          $ref: '#/components/schemas/DeliveryType'
+        branch_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Обязательно при delivery_type = PICKUP_BRANCH
+        delivery_address:
+          type: string
+          nullable: true
+          description: Обязательно при delivery_type = COURIER
+          example: г. Минск, пр-т Независимости, 4, кв. 12
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethod'
+        contact_phone:
+          type: string
+          example: '+375449876543'
+        contact_name:
+          type: string
+          example: Анна-Мария Савицкая
+        bonus_points_to_spend:
+          type: integer
+          default: 0
+          example: 50
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CartItemRequest'
+
+    OrderItem:
+      type: object
+      required:
+        - id
+        - book_id
+        - book_title
+        - quantity
+        - unit_price
+        - total_price
+      properties:
+        id:
+          type: string
+          format: uuid
+        book_id:
+          type: string
+          format: uuid
+        book_title:
+          type: string
+          example: 'Чистый код: создание, анализ и рефакторинг'
+        quantity:
+          type: integer
+          example: 1
+        unit_price:
+          type: number
+          example: 58.90
+        total_price:
+          type: number
+          example: 58.90
+
+    Order:
+      type: object
+      required:
+        - id
+        - order_number
+        - status
+        - payment_status
+        - payment_method
+        - delivery_type
+        - items_total
+        - total_price
+        - items
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 66666666-6666-6666-6666-666666666601
+        order_number:
+          type: string
+          example: LIT-20261013-10001
+        user_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        payment_status:
+          $ref: '#/components/schemas/PaymentStatus'
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethod'
+        delivery_type:
+          $ref: '#/components/schemas/DeliveryType'
+        branch_id:
+          type: string
+          format: uuid
+          nullable: true
+        delivery_address:
+          type: string
+          nullable: true
+        contact_phone:
+          type: string
+        contact_name:
+          type: string
+        items_total:
+          type: number
+          example: 58.90
+        delivery_cost:
+          type: number
+          example: 0.00
+        total_price:
+          type: number
+          example: 58.90
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        cancel_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-13T14:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        total:
+          type: integer
+          example: 5
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+
+    OrderCancelRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 5
+          example: Изменились планы, оформил предзаказ на другое издание
+
+    PaymentSessionResponse:
+      type: object
+      required:
+        - payment_id
+        - payment_url
+        - expires_at
+      properties:
+        payment_id:
+          type: string
+          example: pay_session_94829104
+        payment_url:
+          type: string
+          format: uri
+          example: https://secure-bank.by/checkout/pay_session_94829104
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-10-13T14:45:00Z'
+
+    # ------------------ ERRORS ------------------
+    ErrorDetail:
+      type: object
+      required:
+        - field
+        - issue
+      properties:
+        field:
+          type: string
+          example: email
+        issue:
+          type: string
+          example: Обязательное поле
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - message
+        - timestamp
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Переданы некорректные параметры запроса
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-10-13T20:30:00Z'
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'

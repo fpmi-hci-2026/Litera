@@ -1,0 +1,123 @@
+name: Litera CI / Continuous Integration
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ============================================================================
+  # 1. OpenAPI Specification Validation & Linting
+  # ============================================================================
+  validate-openapi:
+    name: Validate OpenAPI 3.0 Specification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli@latest
+
+      - name: Lint and Validate OpenAPI YAML
+        run: redocly lint api/openapi.yaml
+
+      - name: Verify YAML Syntax with Python
+        run: |
+          python3 -c "
+          import yaml
+          with open('api/openapi.yaml', 'r', encoding='utf-8') as f:
+              doc = yaml.safe_load(f)
+          assert 'openapi' in doc, 'Missing openapi field'
+          assert 'paths' in doc, 'Missing paths'
+          print(f'OpenAPI specification successfully verified! {len(doc[\"paths\"])} endpoints checked.')
+          "
+
+  # ============================================================================
+  # 2. Database Schema Syntax Verification
+  # ============================================================================
+  validate-database:
+    name: Validate PostgreSQL Schema DDL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: litera_user
+          POSTGRES_PASSWORD: litera_secret_password
+          POSTGRES_DB: litera_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Execute DDL Schema Script
+        run: |
+          PGPASSWORD=litera_secret_password psql -h localhost -U litera_user -d litera_db -f database/schema.sql
+
+      - name: Verify Seeded Records
+        run: |
+          PGPASSWORD=litera_secret_password psql -h localhost -U litera_user -d litera_db -c "SELECT count(*) FROM books;"
+          PGPASSWORD=litera_secret_password psql -h localhost -U litera_user -d litera_db -c "SELECT count(*) FROM branches;"
+          PGPASSWORD=litera_secret_password psql -h localhost -U litera_user -d litera_db -c "SELECT count(*) FROM stock_items;"
+
+  # ============================================================================
+  # 3. MCP Server Tests & Python Linting
+  # ============================================================================
+  test-mcp-server:
+    name: Test MCP Server & Tools
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff flake8
+
+      - name: Code Quality & Linting
+        run: |
+          flake8 mcp-server --count --select=E9,F63,F7,F82 --show-source --statistics
+          ruff check mcp-server
+
+      - name: Run MCP Server Test Suite (Unit Tests)
+        run: |
+          cd mcp-server
+          python -m unittest test_mcp.py -v
+
+  # ============================================================================
+  # 4. Docker Build & Compose Config Verification
+  # ============================================================================
+  docker-build:
+    name: Verify Docker Build & Compose Config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Docker Compose Configuration
+        run: docker compose config
+
+      - name: Build Application Docker Image
+        run: docker build -t litera-mcp-server:test .
