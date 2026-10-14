@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Litera — Интерактивный прототип веб-приложения (Лабораторная работа №5)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       DESIGN TOKENS & COLOR THEMES (OSGOOD SEMANTIC DIFFERENTIAL)
+       ========================================================================== */
+    :root {
+      /* Theme A: Academic Oxford (Winner: D = 1.414, Evaluation 4.68, Potency 4.78) */
+      --primary: #0F172A;
+      --primary-light: #1E293B;
+      --secondary: #D97706;
+      --secondary-hover: #B45309;
+      --accent: #F59E0B;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --badge-bg: #FEF3C7;
+      --badge-text: #92400E;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
+      --shadow-1: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-2: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-3: 0 12px 28px rgba(0,0,0,0.14);
+    }
+
+    [data-theme="nordic"] {
+      /* Theme B: Nordic Slate & Mint (D = 3.467, Evaluation 4.18, Activity 4.64) */
+      --primary: #18181B;
+      --primary-light: #27272A;
+      --secondary: #0D9488;
+      --secondary-hover: #0F766E;
+      --accent: #14B8A6;
+      --bg: #F4F4F5;
+      --surface: #FFFFFF;
+      --text: #18181B;
+      --text-muted: #71717A;
+      --border: #E4E4E7;
+      --badge-bg: #CCFBF1;
+      --badge-text: #115E59;
+      --font-display: 'Inter', sans-serif;
+    }
+
+    [data-theme="terracotta"] {
+      /* Theme C: Vintage Terracotta & Kraft (D = 3.644, Evaluation 4.14, Potency 4.12) */
+      --primary: #431407;
+      --primary-light: #78350F;
+      --secondary: #9A3412;
+      --secondary-hover: #7C2D12;
+      --accent: #C2410C;
+      --bg: #FFFBEB;
+      --surface: #FFFFFF;
+      --text: #431407;
+      --text-muted: #78350F;
+      --border: #FDE68A;
+      --badge-bg: #FFEDD5;
+      --badge-text: #9A3412;
+      --font-display: 'Playfair Display', Georgia, serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-ui);
+      background-color: #0F172A;
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.25s, color 0.25s;
+    }
+
+    /* Top Prototype Control Bar */
+    .proto-bar {
+      background: #020617;
+      color: #94A3B8;
+      font-size: 13px;
+      padding: 8px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid #1E293B;
+      position: sticky;
+      top: 0;
+      z-index: 2000;
+    }
+    .proto-bar select, .proto-bar button {
+      background: #1E293B;
+      color: #F8FAFC;
+      border: 1px solid #334155;
+      border-radius: var(--radius-sm);
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .proto-bar select:hover, .proto-bar button:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+    .proto-bar .tag {
+      background: #3B82F6;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .proto-btn-active {
+      background: #D97706 !important;
+      border-color: #F59E0B !important;
+      color: #FFFFFF !important;
+      font-weight: 700;
+    }
+
+    /* Viewport Simulator Wrapper */
+    .viewport-outer {
+      display: flex;
+      justify-content: center;
+      background: #1E293B;
+      min-height: calc(100vh - 45px);
+      padding: 16px 0;
+      transition: all 0.3s ease;
+    }
+    .viewport-frame {
+      width: 100%;
+      max-width: 1440px;
+      background: var(--bg);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: max-width 0.3s ease;
+      overflow: hidden;
+      container-type: inline-size;
+      container-name: viewport;
+    }
+
+    /* ==========================================================================
+       12-COLUMN MODULAR GRID OVERLAY (W_container=1320px, M=60px, G=24px, W_col=88px)
+       ========================================================================== */
+    .grid-overlay {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 1500;
+      justify-content: center;
+    }
+    .viewport-frame.grid-active .grid-overlay {
+      display: flex;
+    }
+    .grid-overlay-cols {
+      width: 100%;
+      max-width: 1440px;
+      padding: 0 60px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 24px;
+      height: 100%;
+    }
+    .g-col {
+      background: rgba(239, 68, 68, 0.08);
+      border-left: 1px dashed rgba(239, 68, 68, 0.4);
+      border-right: 1px dashed rgba(239, 68, 68, 0.4);
+      position: relative;
+    }
+    .g-col span {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(220, 38, 38, 0.9);
+      background: rgba(254, 226, 226, 0.9);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ==========================================================================
+       HEADER & NAVIGATION
+       ========================================================================== */
+    header {
+      background: var(--primary);
+      color: #FFFFFF;
+      padding: 14px 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      position: relative;
+    }
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #FFFFFF;
+    }
+    .logo-mark {
+      background: var(--secondary);
+      color: #FFFFFF;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 20px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .logo-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .logo-subtitle {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent);
+      display: block;
+    }
+
+    /* Search Box */
+    .search-wrapper {
+      flex: 1;
+      max-width: 520px;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: var(--radius-md);
+      padding: 10px 16px 10px 40px;
+      color: #FFFFFF;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input::placeholder {
+      color: #94A3B8;
+    }
+    .search-input:focus {
+      background: #FFFFFF;
+      color: #0F172A;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35);
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94A3B8;
+      pointer-events: none;
+      font-size: 15px;
+    }
+
+    /* Actions */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-action {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #FFFFFF;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-action:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.4);
+    }
+    .btn-user-logged {
+      background: rgba(245, 158, 11, 0.15) !important;
+      border-color: var(--accent) !important;
+      color: #FFFFFF !important;
+    }
+    .btn-cart {
+      background: var(--secondary);
+      border-color: var(--secondary);
+      color: #FFFFFF;
+      font-weight: 600;
+      position: relative;
+    }
+    .btn-cart:hover {
+      background: var(--secondary-hover);
+    }
+    .cart-count {
+      background: #EF4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      margin-left: 4px;
+    }
+
+    /* Mobile Search Bar (Collapsible on small devices) */
+    .mobile-search-bar {
+      display: none;
+      background: var(--primary-light);
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .mobile-search-bar input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.2);
+      background: #FFFFFF;
+      color: #0F172A;
+      font-size: 13px;
+    }
+
+    /* Sub-header / Category Navigation */
+    .subnav {
+      background: var(--primary-light);
+      padding: 8px 24px;
+      overflow-x: auto;
+      white-space: nowrap;
+      display: flex;
+      gap: 16px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .subnav-link {
+      color: #CBD5E1;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      transition: color 0.2s, background 0.2s;
+    }
+    .subnav-link:hover, .subnav-link.active {
+      color: #FFFFFF;
+      background: rgba(255,255,255,0.12);
+    }
+
+    /* ==========================================================================
+       MAIN CONTENT LAYOUT
+       ========================================================================== */
+    .main-layout {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+      flex: 1;
+      width: 100%;
+    }
+
+    /* Sidebar Filters */
+    .filters-sidebar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-1);
+      height: fit-content;
+    }
+    .filter-group {
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-group:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .filter-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      color: var(--text);
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .filter-label input[type="checkbox"] {
+      accent-color: var(--secondary);
+      width: 16px;
+      height: 16px;
+    }
+    .price-range {
+      width: 100%;
+      accent-color: var(--secondary);
+    }
+
+    /* Mobile Quick Filter Accordion Trigger */
+    .mobile-filter-trigger {
+      display: none;
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 16px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Catalog Content Area */
+    .catalog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .catalog-title {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .sort-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* Book Cards Grid */
+    .book-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+
+    .book-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: var(--shadow-1);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      cursor: pointer;
+    }
+    .book-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-2);
+    }
+    .book-cover {
+      width: 100%;
+      height: 240px;
+      border-radius: var(--radius-md);
+      background-size: cover;
+      background-position: center;
+      margin-bottom: 12px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding: 12px;
+      box-shadow: inset 0 -60px 50px -10px rgba(0,0,0,0.6);
+    }
+    .badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-sale {
+      background: #EF4444;
+      color: #FFFFFF;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+    .badge-hit {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+    .badge-preorder {
+      background: #4338CA;
+      color: #FFFFFF;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+    .book-author {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .book-title {
+      font-family: var(--font-display);
+      font-size: 15.5px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.3;
+      margin-bottom: 8px;
+      min-height: 40px;
+    }
+    .book-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .book-price-row {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .price-current {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .price-old {
+      font-size: 12px;
+      text-decoration: line-through;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+    .btn-buy {
+      background: var(--secondary);
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-buy:hover {
+      background: var(--secondary-hover);
+    }
+
+    /* ==========================================================================
+       MODALS & OVERLAYS
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2500;
+      padding: 16px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      max-width: 640px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-3);
+      padding: 24px;
+      position: relative;
+      animation: modalPop 0.25s ease-out;
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+    .modal-close:hover {
+      background: #F1F5F9;
+      color: var(--primary);
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: #FFFFFF;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transform: translateY(160%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 3000;
+      font-size: 14px;
+      border-left: 4px solid var(--accent);
+    }
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    /* Mobile Bottom Navigation */
+    .mobile-bottom-nav {
+      display: none;
+      position: sticky;
+      bottom: 0;
+      background: var(--primary);
+      color: #fff;
+      padding: 10px 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      z-index: 1000;
+      justify-content: space-around;
+      font-size: 11px;
+    }
+    .mobile-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: #94A3B8;
+      cursor: pointer;
+      user-select: none;
+      min-width: 50px;
+    }
+    .mobile-nav-item span:first-child {
+      font-size: 18px;
+    }
+    .mobile-nav-item.active {
+      color: var(--accent);
+    }
+
+    /* ==========================================================================
+       RESPONSIVE ADAPTATION (6 BREAKPOINTS VIA CONTAINER QUERIES & CLASSES)
+       ========================================================================== */
+
+    /* 1. Medium Desktop / Laptop: 992px - 1199px (and simulated 1024px) */
+    @container viewport (max-width: 1199px) {
+      .book-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .main-layout {
+        gap: 20px;
+      }
+    }
+    .viewport-frame.viewport-1024 .book-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* 2. Tablet Landscape: 768px - 991px (and simulated 768px) */
+    @container viewport (max-width: 991px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+      .filters-sidebar {
+        display: none;
+      }
+      .filters-sidebar.mobile-open {
+        display: block;
+        margin-bottom: 20px;
+      }
+      .mobile-filter-trigger {
+        display: flex;
+      }
+      .book-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .viewport-frame.viewport-768 .main-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .viewport-frame.viewport-768 .filters-sidebar {
+      display: none;
+    }
+    .viewport-frame.viewport-768 .filters-sidebar.mobile-open {
+      display: block !important;
+      margin-bottom: 20px;
+    }
+    .viewport-frame.viewport-768 .mobile-filter-trigger {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-768 .book-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* 3. Tablet Portrait / Large Mobile: 576px - 767px (and simulated 600px) */
+    @container viewport (max-width: 767px) {
+      header {
+        padding: 10px 16px;
+      }
+      .search-wrapper {
+        display: none;
+      }
+      .mobile-bottom-nav {
+        display: flex;
+      }
+      .book-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+    }
+    .viewport-frame.viewport-600 header {
+      padding: 10px 16px !important;
+    }
+    .viewport-frame.viewport-600 .search-wrapper {
+      display: none !important;
+    }
+    .viewport-frame.viewport-600 .mobile-bottom-nav {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-600 .main-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .viewport-frame.viewport-600 .filters-sidebar {
+      display: none;
+    }
+    .viewport-frame.viewport-600 .filters-sidebar.mobile-open {
+      display: block !important;
+      margin-bottom: 20px;
+    }
+    .viewport-frame.viewport-600 .mobile-filter-trigger {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-600 .book-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 16px;
+    }
+
+    /* 4. Mobile Medium / iPhone Pro Max: 400px - 575px (and simulated 430px) */
+    @container viewport (max-width: 575px) {
+      .main-layout {
+        padding: 14px;
+      }
+      .book-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+      .book-cover {
+        height: 180px;
+      }
+      .book-title {
+        font-size: 14px;
+        min-height: 36px;
+      }
+    }
+    .viewport-frame.viewport-430 .main-layout {
+      padding: 14px !important;
+      grid-template-columns: 1fr !important;
+    }
+    .viewport-frame.viewport-430 .filters-sidebar {
+      display: none;
+    }
+    .viewport-frame.viewport-430 .filters-sidebar.mobile-open {
+      display: block !important;
+      margin-bottom: 20px;
+    }
+    .viewport-frame.viewport-430 .mobile-filter-trigger {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-430 .search-wrapper {
+      display: none !important;
+    }
+    .viewport-frame.viewport-430 .mobile-bottom-nav {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-430 .book-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 12px !important;
+    }
+    .viewport-frame.viewport-430 .book-cover {
+      height: 180px !important;
+    }
+    .viewport-frame.viewport-430 .book-title {
+      font-size: 14px !important;
+      min-height: 36px !important;
+    }
+
+    /* 5. Mobile Compact / Android 360px: 320px - 399px (and simulated 360px) */
+    @container viewport (max-width: 399px) {
+      .main-layout {
+        padding: 10px;
+      }
+      .book-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .book-cover {
+        height: 200px;
+      }
+      .btn-buy {
+        min-height: 44px;
+        padding: 10px 16px;
+        font-size: 13px;
+      }
+      .logo-title {
+        font-size: 18px;
+      }
+    }
+    .viewport-frame.viewport-360 .main-layout {
+      padding: 10px !important;
+      grid-template-columns: 1fr !important;
+    }
+    .viewport-frame.viewport-360 .filters-sidebar {
+      display: none;
+    }
+    .viewport-frame.viewport-360 .filters-sidebar.mobile-open {
+      display: block !important;
+      margin-bottom: 20px;
+    }
+    .viewport-frame.viewport-360 .mobile-filter-trigger {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-360 .search-wrapper {
+      display: none !important;
+    }
+    .viewport-frame.viewport-360 .mobile-bottom-nav {
+      display: flex !important;
+    }
+    .viewport-frame.viewport-360 .book-grid {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+    }
+    .viewport-frame.viewport-360 .book-cover {
+      height: 200px !important;
+    }
+    .viewport-frame.viewport-360 .btn-buy {
+      min-height: 48px !important;
+      padding: 10px 16px !important;
+      font-size: 13px !important;
+    }
+    .viewport-frame.viewport-360 .logo-title {
+      font-size: 18px !important;
+    }
+
+    /* Outer browser fallback media queries */
+    @media (max-width: 991px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+      .filters-sidebar {
+        display: none;
+      }
+      .filters-sidebar.mobile-open {
+        display: block;
+      }
+      .mobile-filter-trigger {
+        display: flex;
+      }
+      .book-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      header {
+        padding: 10px 16px;
+      }
+      .search-wrapper {
+        display: none;
+      }
+      .mobile-bottom-nav {
+        display: flex;
+      }
+      .book-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .book-cover {
+        height: 180px;
+      }
+    }
+    @media (max-width: 380px) {
+      .book-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Prototype Control Bar (Simulator & Theme Switcher) -->
+  <div class="proto-bar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span class="tag">ПРОТОТИП ЛР №5</span>
+      <span style="color: #F8FAFC;"><strong>Litera Design System & Interactive Prototype</strong></span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <label>🎨 Цветовая схема:
+        <select id="themeSelector" onchange="switchTheme(this.value)">
+          <option value="oxford">Палитра А: Academic Oxford (Победитель: D=1.414)</option>
+          <option value="nordic">Палитра Б: Nordic Slate & Mint (D=3.467)</option>
+          <option value="terracotta">Палитра В: Vintage Terracotta (D=3.644)</option>
+        </select>
+      </label>
+      <label>📱 Режим экрана:
+        <select id="viewportSelector" onchange="switchViewport(this.value)">
+          <option value="1440">Десктоп Large (1440px / 12 колонок)</option>
+          <option value="1024">Ноутбук / Medium (1024px / 3 колонки)</option>
+          <option value="768">Планшет горизонт. (768px / 2 колонки)</option>
+          <option value="600">Планшет вертик. (600px / тач-меню)</option>
+          <option value="430">iPhone 16 Pro Max (430px / Thumb Zone)</option>
+          <option value="360">Android Compact (360px / 1 колонка)</option>
+          <option value="100%">100% (Флюидный респонсив)</option>
+        </select>
+      </label>
+      <button id="gridBtn" onclick="toggleGrid()">📐 12-кол. Сетка</button>
+      <button id="authTopBtn" onclick="handleAuthClick()">👤 Вход / Профиль</button>
+    </div>
+  </div>
+
+  <!-- Viewport Outer Container -->
+  <div class="viewport-outer">
+    <div class="viewport-frame" id="viewportFrame">
+
+      <!-- 12-Column Grid Visualization (W_container=1320px, M=60px, G=24px, W_col=88px) -->
+      <div class="grid-overlay" id="gridOverlay">
+        <div class="grid-overlay-cols">
+          <div class="g-col"><span>Col 1</span></div>
+          <div class="g-col"><span>Col 2</span></div>
+          <div class="g-col"><span>Col 3</span></div>
+          <div class="g-col"><span>Col 4</span></div>
+          <div class="g-col"><span>Col 5</span></div>
+          <div class="g-col"><span>Col 6</span></div>
+          <div class="g-col"><span>Col 7</span></div>
+          <div class="g-col"><span>Col 8</span></div>
+          <div class="g-col"><span>Col 9</span></div>
+          <div class="g-col"><span>Col 10</span></div>
+          <div class="g-col"><span>Col 11</span></div>
+          <div class="g-col"><span>Col 12</span></div>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <header>
+        <div class="header-container">
+          <a href="#" class="logo">
+            <div class="logo-mark">L</div>
+            <div>
+              <span class="logo-title">Litera</span>
+              <span class="logo-subtitle">Книжный магазин</span>
+            </div>
+          </a>
+
+          <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="liveSearchInput" class="search-input" placeholder="Поиск по названию, автору, жанру или ISBN..." oninput="handleSearch(this.value)">
+          </div>
+
+          <div class="header-actions">
+            <button class="btn-action" id="headerAuthBtn" onclick="handleAuthClick()">👤 Войти</button>
+            <button class="btn-action btn-cart" onclick="openCartDrawer()">
+              🛒 Корзина <span class="cart-count" id="cartCountBadge">0</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Mobile Search Bar (revealed by mobile nav or on small viewports) -->
+      <div class="mobile-search-bar" id="mobileSearchBar">
+        <input type="text" id="mobileSearchInput" placeholder="🔍 Поиск книги, автора или ISBN..." oninput="handleSearch(this.value)">
+      </div>
+
+      <!-- Subnav / Categories -->
+      <div class="subnav">
+        <a href="#" class="subnav-link active" onclick="filterCategory('all', this)">Все книги</a>
+        <a href="#" class="subnav-link" onclick="filterCategory('Художественная литература', this)">Художественная литература</a>
+        <a href="#" class="subnav-link" onclick="filterCategory('Программирование и IT', this)">Программирование и IT</a>
+        <a href="#" class="subnav-link" onclick="filterCategory('Наука и история', this)">Наука и история</a>
+        <a href="#" class="subnav-link" onclick="filterCategory('Философия и психология', this)">Философия</a>
+        <a href="#" class="subnav-link" onclick="filterCategory('Бестселлеры', this)">⭐ Бестселлеры</a>
+      </div>
+
+      <!-- Main Layout (12-Col Compliant) -->
+      <main class="main-layout">
+        <!-- Sidebar Filters -->
+        <aside class="filters-sidebar" id="filtersSidebar">
+          <div class="filter-group">
+            <div class="filter-title">Наличие и доставка</div>
+            <label class="filter-label">
+              <input type="checkbox" id="filterInStock" onchange="applyFilters()" checked> В наличии на складе
+            </label>
+            <label class="filter-label">
+              <input type="checkbox" id="filterPickup" onchange="applyFilters()"> Самовывоз в ТЦ «Галерея» (Минск)
+            </label>
+            <label class="filter-label">
+              <input type="checkbox" id="filterPreorder" onchange="applyFilters()"> Предзаказы новинок
+            </label>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-title">Диапазон цены (BYN)</div>
+            <input type="range" class="price-range" id="priceRange" min="15" max="100" value="100" oninput="updatePriceLabel(this.value)">
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-muted); margin-top: 6px;">
+              <span>от 15 BYN</span>
+              <span id="priceValLabel" style="font-weight: 600; color: var(--primary);">до 100 BYN</span>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-title">Формат издания</div>
+            <label class="filter-label">
+              <input type="checkbox" checked disabled> Твердый переплет (Hardcover)
+            </label>
+            <label class="filter-label">
+              <input type="checkbox" checked disabled> Иллюстрированное издание
+            </label>
+          </div>
+
+          <div style="background: var(--bg); padding: 12px; border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);">
+            💡 <strong>Подсказка:</strong> переключайте темы и разрешения в верхней панели для тестирования адаптивности.
+          </div>
+        </aside>
+
+        <!-- Catalog Section -->
+        <section class="catalog-section">
+          <!-- Mobile Trigger for Filters -->
+          <div class="mobile-filter-trigger" onclick="toggleMobileFilters()">
+            <span>⚙️ Фильтры каталога и наличие</span>
+            <span id="filterToggleIcon">▼</span>
+          </div>
+
+          <div class="catalog-header">
+            <div>
+              <h1 class="catalog-title" id="catalogHeading">Каталог изданий</h1>
+              <p style="color: var(--text-muted); font-size: 13.5px;" id="booksCountLabel">Загрузка каталога...</p>
+            </div>
+            <div style="display: flex; align-items: center;">
+              <label style="font-size: 13px; color: var(--text-muted); margin-right: 8px;">Сортировка:</label>
+              <select class="sort-select" onchange="sortBooks(this.value)">
+                <option value="popular">По популярности</option>
+                <option value="price_asc">Сначала дешевле</option>
+                <option value="price_desc">Сначала дороже</option>
+                <option value="rating">По рейтингу читателей</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Cards Grid -->
+          <div class="book-grid" id="bookGrid">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </section>
+      </main>
+
+      <!-- Mobile Bottom Navigation (Natural Thumb Zone) -->
+      <nav class="mobile-bottom-nav">
+        <div class="mobile-nav-item active" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+          <span>🏠</span>
+          <span>Каталог</span>
+        </div>
+        <div class="mobile-nav-item" onclick="toggleMobileSearch()">
+          <span>🔍</span>
+          <span>Поиск</span>
+        </div>
+        <div class="mobile-nav-item" onclick="openCartDrawer()">
+          <span>🛒</span>
+          <span>Корзина (<span id="mobileCartCount">0</span>)</span>
+        </div>
+        <div class="mobile-nav-item" id="mobileProfileNav" onclick="handleAuthClick()">
+          <span>👤</span>
+          <span id="mobileProfileLabel">Войти</span>
+        </div>
+      </nav>
+
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODALS & SLIDERS (BOOK DETAILS, READER, CART, CHECKOUT, AUTH, PROFILE)
+       ========================================================================== -->
+
+  <!-- Book Details Modal -->
+  <div class="modal-overlay" id="bookModal">
+    <div class="modal-card" style="max-width: 720px;">
+      <button class="modal-close" onclick="closeModal('bookModal')">✕</button>
+      <div style="display: flex; gap: 24px; flex-wrap: wrap;" id="bookModalContent">
+        <!-- Populated via openBookModal -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Fragment Reader Modal -->
+  <div class="modal-overlay" id="readerModal">
+    <div class="modal-card" style="max-width: 680px;">
+      <button class="modal-close" onclick="closeModal('readerModal')">✕</button>
+      <div style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+        <span class="badge" style="background: var(--badge-bg); color: var(--badge-text);">Ознакомительный фрагмент</span>
+        <h2 style="font-family: var(--font-display); margin-top: 6px;" id="readerTitle">Название книги</h2>
+        <p style="color: var(--text-muted); font-size: 13px;" id="readerAuthor">Автор</p>
+      </div>
+      <div style="font-family: 'Playfair Display', Georgia, serif; font-size: 16px; line-height: 1.8; color: var(--text); background: #FAF9F6; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--border); max-height: 400px; overflow-y: auto; white-space: pre-line;" id="readerText">
+        <!-- Sample text -->
+      </div>
+      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <span style="font-size: 13px; color: var(--text-muted);">Прочитано 3 страницы из 640</span>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-action" style="color: var(--primary); border-color: var(--border);" onclick="closeModal('readerModal')">Закрыть ридер</button>
+          <button class="btn-buy" id="readerBuyBtn">Купить полное издание</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shopping Cart Drawer / Modal -->
+  <div class="modal-overlay" id="cartModal">
+    <div class="modal-card" style="max-width: 540px;">
+      <button class="modal-close" onclick="closeModal('cartModal')">✕</button>
+      <h2 style="font-family: var(--font-display); margin-bottom: 16px;">Корзина покупателя</h2>
+      <div id="cartItemsList" style="max-height: 340px; overflow-y: auto; margin-bottom: 20px;">
+        <!-- Populated via updateCartUI -->
+      </div>
+      <div style="border-top: 2px solid var(--border); padding-top: 16px;">
+        <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-bottom: 16px;">
+          <span>Итого к оплате:</span>
+          <span style="color: var(--primary);" id="cartTotalSum">0.00 BYN</span>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn-action" style="flex: 1; color: var(--primary); border-color: var(--border);" onclick="closeModal('cartModal')">Продолжить выбор</button>
+          <button class="btn-buy" style="flex: 2; padding: 12px; font-size: 14px;" onclick="startCheckout()">Оформить заказ →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-step Checkout Modal -->
+  <div class="modal-overlay" id="checkoutModal">
+    <div class="modal-card" style="max-width: 580px;">
+      <button class="modal-close" onclick="closeModal('checkoutModal')">✕</button>
+      <h2 style="font-family: var(--font-display); margin-bottom: 8px;">Оформление заказа</h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Заполните параметры доставки и подтвердите покупку</p>
+
+      <form onsubmit="completeOrder(event)">
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Способ получения заказа:</label>
+          <select id="checkoutDelivery" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13.5px;" onchange="handleDeliveryChange(this.value)">
+            <option value="pickup">Самовывоз: г. Минск, ТЦ «Галерея», пр-т Победителей 9 (Бесплатно, сегодня)</option>
+            <option value="courier">Курьерская экспресс-доставка по Минску (+8.00 BYN)</option>
+            <option value="post">Почтовое отправление по Беларуси (Европочта / Белпочта)</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Имя получателя:</label>
+            <input type="text" id="checkoutName" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px;" value="Кирилл Зайдаль">
+          </div>
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Телефон (СМС-трек):</label>
+            <input type="tel" id="checkoutPhone" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px;" value="+375 (29) 123-45-67">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Email для электронного чека:</label>
+          <input type="email" id="checkoutEmail" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px;" value="zaidal.kirill@litera.by">
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Способ оплаты:</label>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <label class="filter-label" style="border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-md); flex: 1; min-width: 140px;">
+              <input type="radio" name="payment" value="card" checked> Карта онлайн (Белкарт / МИР / Visa)
+            </label>
+            <label class="filter-label" style="border: 1px solid var(--border); padding: 8px 12px; border-radius: var(--radius-md); flex: 1; min-width: 140px;">
+              <input type="radio" name="payment" value="cash"> При получении в ПВЗ
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" class="btn-action" style="color: var(--primary); border-color: var(--border);" onclick="closeModal('checkoutModal')">Отмена</button>
+          <button type="submit" class="btn-buy" style="font-size: 14px; padding: 10px 24px;">Подтвердить заказ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Order Success Screen Modal -->
+  <div class="modal-overlay" id="orderSuccessModal">
+    <div class="modal-card" style="text-align: center; max-width: 480px;">
+      <div style="font-size: 54px; color: #10B981; margin-bottom: 12px;">✓</div>
+      <h2 style="font-family: var(--font-display); margin-bottom: 8px;">Заказ успешно оформлен!</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">Номер заказа: <strong id="successOrderId" style="color: var(--primary); font-family: 'JetBrains Mono', monospace;">#LIT-2026-8819</strong></p>
+      <div style="background: #F1F5F9; border-radius: var(--radius-md); padding: 14px; text-align: left; font-size: 13px; margin-bottom: 20px;">
+        <p style="margin-bottom: 4px;">• Статус: <strong style="color: #059669;">Принят в обработку (Сборка на складе)</strong></p>
+        <p style="margin-bottom: 4px;">• Контактный телефон: <strong id="successPhone">+375 (29) 123-45-67</strong></p>
+        <p style="margin-bottom: 4px;">• Пункт выдачи: <strong id="successDelivery">г. Минск, пр-т Победителей 9 (ТЦ Галерея)</strong></p>
+        <p>• Электронный чек отправлен на email.</p>
+      </div>
+      <button class="btn-buy" onclick="closeModal('orderSuccessModal')" style="width: 100%; padding: 12px;">Вернуться к витрине каталога</button>
+    </div>
+  </div>
+
+  <!-- Auth Modal (Login / Registration) -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-card" style="max-width: 420px;">
+      <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+      <h2 style="font-family: var(--font-display); margin-bottom: 6px;">Вход в Litera ID</h2>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 18px;">Авторизация для доступа к персональной скидке и истории заказов</p>
+      <form onsubmit="handleAuthSubmit(event)">
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">Email или номер телефона:</label>
+          <input type="text" id="authLoginInput" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px;" value="zaidal.kirill@litera.by" required>
+        </div>
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px;">Пароль учетной записи:</label>
+          <input type="password" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px;" value="••••••••••••" required>
+        </div>
+        <button type="submit" class="btn-buy" style="width: 100%; padding: 11px; font-size: 14px;">Войти в систему</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Profile Modal (Visible when Logged In) -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal-card" style="max-width: 520px;">
+      <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+      <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--secondary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold;">К</div>
+        <div>
+          <h2 style="font-family: var(--font-display); font-size: 20px;" id="profileUserName">Кирилл Зайдаль</h2>
+          <p style="font-size: 13px; color: var(--text-muted);" id="profileUserEmail">zaidal.kirill@litera.by</p>
+          <span class="badge" style="background: var(--badge-bg); color: var(--badge-text); margin-top: 4px; display: inline-block;">Студент ФПМИ • Скидка читателя 5%</span>
+        </div>
+      </div>
+
+      <h3 style="font-size: 15px; margin-bottom: 10px; color: var(--primary);">Активные и прошлые заказы:</h3>
+      <div id="userOrdersList" style="max-height: 240px; overflow-y: auto; margin-bottom: 20px;">
+        <!-- Orders list -->
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 14px;">
+        <button class="btn-action" style="color: #EF4444; border-color: #FCA5A5;" onclick="logoutUser()">🚪 Выйти из аккаунта</button>
+        <button class="btn-buy" onclick="closeModal('profileModal')">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast" id="toast">
+    <span style="font-size: 18px;">✨</span>
+    <span id="toastMsg">Товар добавлен</span>
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT APPLICATION LOGIC
+       ========================================================================== -->
+  <script>
+    // Database of Catalog Books
+    const books = [
+      {
+        id: 1,
+        title: "Фауст (В 2 томах с илл.)",
+        author: "Иоганн Вольфганг Гете",
+        category: "Художественная литература",
+        price: 38.50,
+        oldPrice: 48.00,
+        rating: 4.9,
+        reviewsCount: 128,
+        inStock: true,
+        pickup: true,
+        preorder: false,
+        pages: 640,
+        isbn: "978-5-17-135890-1",
+        coverBg: "linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%)",
+        desc: "Бессмертная философская трагедия Гете в каноническом переводе Б. Пастернака с классическими гравюрами.",
+        sample: "Посвящение\nВы снова здесь, изменчивые тени,\nКоторые когда-то на заре\nЯвлялись мне... Сквозь дымку сновидений\nЯ вновь ловлю ваш бег в вечерней мгле..."
+      },
+      {
+        id: 2,
+        title: "Чистая архитектура. Руководство для разработчика",
+        author: "Роберт К. Мартин",
+        category: "Программирование и IT",
+        price: 54.00,
+        oldPrice: 65.00,
+        rating: 4.8,
+        reviewsCount: 94,
+        inStock: true,
+        pickup: true,
+        preorder: false,
+        pages: 352,
+        isbn: "978-5-4461-0772-8",
+        coverBg: "linear-gradient(135deg, #0F766E 0%, #115E59 100%)",
+        desc: "Фундаментальный труд Роберта Мартина (Дядюшки Боба) об универсальных правилах архитектуры ПО.",
+        sample: "Предисловие\nАрхитектура программного обеспечения — это искусство чертить границы. Границы разделяют программные элементы и удерживают их от знания о деталях реализации..."
+      },
+      {
+        id: 3,
+        title: "Мастер и Маргарита",
+        author: "Михаил Булгаков",
+        category: "Художественная литература",
+        price: 29.90,
+        oldPrice: null,
+        rating: 5.0,
+        reviewsCount: 310,
+        inStock: true,
+        pickup: true,
+        preorder: false,
+        pages: 448,
+        isbn: "978-5-389-01686-6",
+        coverBg: "linear-gradient(135deg, #881337 0%, #4C0519 100%)",
+        desc: "Главный роман XX века. Мистика, сатира, история Понтия Пилата и вечная любовь на Патриарших прудах.",
+        sample: "Глава 1. Никогда не разговаривайте с неизвестными\nОднажды весною, в час небывало жаркого заката, в Москве, на Патриарших прудах, появились два гражданина..."
+      },
+      {
+        id: 4,
+        title: "Паттерны объектно-ориентированного проектирования (GoF)",
+        author: "Э. Гамма, Р. Хелм, Р. Джонсон, Дж. Влиссидес",
+        category: "Программирование и IT",
+        price: 68.20,
+        oldPrice: 85.00,
+        rating: 4.9,
+        reviewsCount: 175,
+        inStock: true,
+        pickup: false, /* Only shipping from regional central hub, no instant Minsk pickup */
+        preorder: false,
+        pages: 446,
+        isbn: "978-5-4461-1550-1",
+        coverBg: "linear-gradient(135deg, #312E81 0%, #1E1B4B 100%)",
+        desc: "Классическая книга банды четырех (Gang of Four), определившая развитие объектно-ориентированного кода.",
+        sample: "Введение\nПроектировать объектно-ориентированные программы трудно, а проектировать повторно используемые системы — еще труднее..."
+      },
+      {
+        id: 5,
+        title: "Sapiens. Краткая история человечества",
+        author: "Юваль Ной Харари",
+        category: "Наука и история",
+        price: 42.00,
+        oldPrice: 49.90,
+        rating: 4.7,
+        reviewsCount: 220,
+        inStock: true,
+        pickup: true,
+        preorder: false,
+        pages: 512,
+        isbn: "978-5-906837-55-4",
+        coverBg: "linear-gradient(135deg, #78350F 0%, #451A03 100%)",
+        desc: "Захватывающее исследование того, как невзрачная обезьяна стала хозяином планеты Земля.",
+        sample: "Часть 1. Когнитивная революция\nОколо 13,5 миллиарда лет назад в результате так называемого Большого взрыва возникли материя, энергия, время и пространство..."
+      },
+      {
+        id: 6,
+        title: "Государство",
+        author: "Платон",
+        category: "Философия и психология",
+        price: 24.50,
+        oldPrice: null,
+        rating: 4.6,
+        reviewsCount: 88,
+        inStock: true,
+        pickup: true,
+        preorder: false,
+        pages: 384,
+        isbn: "978-5-389-07435-4",
+        coverBg: "linear-gradient(135deg, #1C1917 0%, #0C0A09 100%)",
+        desc: "Основополагающий философский трактат об идеальном полисе, справедливости и мифе о пещере.",
+        sample: "Книга первая\nЯ ходил вчера в Пирей с Главконом, сыном Аристона, помолиться богине и вместе с тем посмотреть, как справят праздник..."
+      },
+      {
+        id: 7,
+        title: "Грокаем алгоритмы. 2-е иллюстрированное издание",
+        author: "Адитья Бхаргава",
+        category: "Программирование и IT",
+        price: 59.90,
+        oldPrice: 72.00,
+        rating: 4.95,
+        reviewsCount: 412,
+        inStock: false,
+        pickup: false,
+        preorder: true,
+        pages: 348,
+        isbn: "978-5-4461-2339-1",
+        coverBg: "linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)",
+        desc: "Долгожданное второе издание мирового бестселлера. Новые главы о деревьях, NP-полных задачах и хэшировании. Официальный предзаказ Litera.",
+        sample: "Введение во второе издание\nАлгоритмы — это не магия. Это набор простых шагов для решения сложной задачи..."
+      },
+      {
+        id: 8,
+        title: "Идиот",
+        author: "Федор Михайлович Достоевский",
+        category: "Художественная литература",
+        price: 26.50,
+        oldPrice: 32.00,
+        rating: 4.88,
+        reviewsCount: 164,
+        inStock: true,
+        pickup: true,
+        preorder: false,
+        pages: 640,
+        isbn: "978-5-389-05243-7",
+        coverBg: "linear-gradient(135deg, #374151 0%, #111827 100%)",
+        desc: "Глубочайший роман русской классики о князе Мышкине — христоподобном человеке в циничном мире страстей.",
+        sample: "В конце ноября, в оттепель, часов в девять утра, поезд Петербургско-Варшавской железной дороги на всех парах подходил к Петербургу..."
+      }
+    ];
+
+    // State Variables
+    let cart = [];
+    let currentCategory = 'all';
+    let searchQuery = '';
+    let maxPrice = 100;
+    let onlyInStock = true;
+    let onlyPickup = false;
+    let onlyPreorder = false;
+
+    // Authentication & Orders State
+    let currentUser = null;
+    let userOrders = [
+      { id: "#LIT-2026-8819", date: "14.10.2026", status: "Принят в обработку (Склад)", total: 92.50, items: "Чистая архитектура, Фауст" }
+    ];
+
+    // ==========================================================================
+    // CATALOG RENDERING
+    // ==========================================================================
+    function renderCatalog() {
+      const grid = document.getElementById('bookGrid');
+      grid.innerHTML = '';
+
+      const filtered = books.filter(b => {
+        const matchCategory = (currentCategory === 'all') || 
+                              (currentCategory === 'Бестселлеры' ? b.rating >= 4.8 : b.category === currentCategory);
+        const matchSearch = b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            b.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            b.isbn.includes(searchQuery);
+        const matchPrice = b.price <= maxPrice;
+
+        let matchStock = true;
+        if (onlyInStock && !b.inStock && !b.preorder) matchStock = false;
+        if (onlyPickup && !b.pickup) matchStock = false;
+        if (onlyPreorder && !b.preorder) matchStock = false;
+
+        return matchCategory && matchSearch && matchPrice && matchStock;
+      });
+
+      document.getElementById('booksCountLabel').innerText = `Найдено ${filtered.length} изданий в каталоге`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; padding: 48px; text-align: center; color: var(--text-muted); background: var(--surface); border-radius: var(--radius-lg); border: 1px dashed var(--border);">
+          <h3 style="font-family: var(--font-display); margin-bottom: 8px;">Книг по заданным фильтрам не найдено</h3>
+          <p style="font-size: 13.5px;">Попробуйте ослабить параметры наличия, сбросить чекбоксы или увеличить ценовой диапазон.</p>
+        </div>`;
+        return;
+      }
+
+      filtered.forEach(b => {
+        const card = document.createElement('div');
+        card.className = 'book-card';
+        card.innerHTML = `
+          <div class="book-cover" style="background: ${b.coverBg};" onclick="openBookModal(${b.id})">
+            ${b.preorder ? '<span class="badge badge-preorder">Предзаказ</span>' : (b.oldPrice ? '<span class="badge badge-sale">Скидка</span>' : '')}
+            ${b.rating >= 4.9 ? '<span class="badge badge-hit">★ Хит</span>' : ''}
+            <div style="color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">
+              <div style="font-size: 10px; text-transform: uppercase; color: var(--accent); font-weight: 700;">Litera Edition</div>
+              <div style="font-size: 13px; font-weight: 700; line-height: 1.2;">${b.title}</div>
+            </div>
+          </div>
+          <div class="book-author">${b.author}</div>
+          <div class="book-title" onclick="openBookModal(${b.id})">${b.title}</div>
+          <div class="book-meta">★ ${b.rating} (${b.reviewsCount} отзывов) • ${b.pages} с.</div>
+          <div class="book-price-row">
+            <div>
+              <span class="price-current">${b.price.toFixed(2)} BYN</span>
+              ${b.oldPrice ? `<span class="price-old">${b.oldPrice.toFixed(2)} BYN</span>` : ''}
+            </div>
+            <button class="btn-buy" onclick="addToCart(${b.id}, event)">
+              ${b.preorder ? 'Предзаказ' : 'В корзину'}
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // ==========================================================================
+    // CART & CHECKOUT MANAGEMENT
+    // ==========================================================================
+    function addToCart(bookId, event) {
+      if (event) event.stopPropagation();
+      const book = books.find(b => b.id === bookId);
+      const existing = cart.find(item => item.id === bookId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        cart.push({ ...book, count: 1 });
+      }
+      updateCartUI();
+      showToast(`«${book.title}» добавлена в корзину`);
+    }
+
+    function updateCartUI() {
+      const totalCount = cart.reduce((acc, item) => acc + item.count, 0);
+      document.getElementById('cartCountBadge').innerText = totalCount;
+      document.getElementById('mobileCartCount').innerText = totalCount;
+
+      const list = document.getElementById('cartItemsList');
+      if (cart.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 28px;">Ваша корзина пуста</p>';
+        document.getElementById('cartTotalSum').innerText = '0.00 BYN';
+        return;
+      }
+
+      list.innerHTML = '';
+      let sum = 0;
+      cart.forEach(item => {
+        sum += item.price * item.count;
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);';
+        row.innerHTML = `
+          <div style="flex: 1; padding-right: 12px;">
+            <div style="font-weight: 600; font-size: 13.5px; line-height: 1.3;">${item.title}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">${item.author} • ${item.price.toFixed(2)} BYN</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn-action" style="padding: 3px 8px; font-weight: bold; color: var(--primary);" onclick="changeCount(${item.id}, -1)">−</button>
+            <span style="font-weight: 600; min-width: 20px; text-align: center;">${item.count}</span>
+            <button class="btn-action" style="padding: 3px 8px; font-weight: bold; color: var(--primary);" onclick="changeCount(${item.id}, 1)">+</button>
+            <span style="font-weight: 700; margin-left: 10px; min-width: 70px; text-align: right;">${(item.price * item.count).toFixed(2)} BYN</span>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+
+      document.getElementById('cartTotalSum').innerText = sum.toFixed(2) + ' BYN';
+    }
+
+    function changeCount(bookId, delta) {
+      const item = cart.find(i => i.id === bookId);
+      if (item) {
+        item.count += delta;
+        if (item.count <= 0) {
+          cart = cart.filter(i => i.id !== bookId);
+        }
+      }
+      updateCartUI();
+    }
+
+    function startCheckout() {
+      if (cart.length === 0) {
+        alert("Корзина пуста. Добавьте книги перед переходом к оформлению!");
+        return;
+      }
+      closeModal('cartModal');
+      // Pre-fill user data if authenticated
+      if (currentUser) {
+        document.getElementById('checkoutName').value = currentUser.name;
+        document.getElementById('checkoutEmail').value = currentUser.email;
+        document.getElementById('checkoutPhone').value = currentUser.phone;
+      }
+      document.getElementById('checkoutModal').classList.add('active');
+    }
+
+    function handleDeliveryChange(val) {
+      // Dynamic delivery updates
+    }
+
+    function completeOrder(e) {
+      e.preventDefault();
+      closeModal('checkoutModal');
+      const orderNum = Math.floor(1000 + Math.random() * 9000);
+      const orderId = `#LIT-2026-${orderNum}`;
+      document.getElementById('successOrderId').innerText = orderId;
+
+      const phone = document.getElementById('checkoutPhone').value;
+      const deliverySelect = document.getElementById('checkoutDelivery');
+      const deliveryText = deliverySelect.options[deliverySelect.selectedIndex].text;
+
+      document.getElementById('successPhone').innerText = phone;
+      document.getElementById('successDelivery').innerText = deliveryText;
+
+      const orderSum = cart.reduce((acc, item) => acc + item.price * item.count, 0);
+      const itemsListStr = cart.map(i => `${i.title} (${i.count})`).join(', ');
+
+      userOrders.unshift({
+        id: orderId,
+        date: "Только что",
+        status: "Принят в обработку (Склад)",
+        total: orderSum,
+        items: itemsListStr
+      });
+
+      cart = [];
+      updateCartUI();
+      document.getElementById('orderSuccessModal').classList.add('active');
+    }
+
+    // ==========================================================================
+    // AUTHENTICATION & USER PROFILE
+    // ==========================================================================
+    function handleAuthClick() {
+      if (currentUser) {
+        openProfileModal();
+      } else {
+        openAuthModal();
+      }
+    }
+
+    function openAuthModal() {
+      document.getElementById('authModal').classList.add('active');
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      const login = document.getElementById('authLoginInput').value || 'zaidal.kirill@litera.by';
+      currentUser = {
+        name: 'Кирилл Зайдаль',
+        email: login,
+        phone: '+375 (29) 123-45-67',
+        role: 'Студент ФПМИ (Постоянный читатель)'
+      };
+      updateAuthUI();
+      closeModal('authModal');
+      showToast(`Добро пожаловать, ${currentUser.name}! Сессия активирована.`);
+    }
+
+    function updateAuthUI() {
+      const headerBtn = document.getElementById('headerAuthBtn');
+      const topBarBtn = document.getElementById('authTopBtn');
+      const mobileProfileLabel = document.getElementById('mobileProfileLabel');
+
+      if (currentUser) {
+        headerBtn.innerHTML = `👤 Кирилл З. (Профиль)`;
+        headerBtn.classList.add('btn-user-logged');
+        topBarBtn.innerHTML = `👤 Профиль: Кирилл`;
+        topBarBtn.classList.add('proto-btn-active');
+        mobileProfileLabel.innerText = "Профиль";
+      } else {
+        headerBtn.innerHTML = `👤 Войти`;
+        headerBtn.classList.remove('btn-user-logged');
+        topBarBtn.innerHTML = `👤 Вход / Профиль`;
+        topBarBtn.classList.remove('proto-btn-active');
+        mobileProfileLabel.innerText = "Войти";
+      }
+    }
+
+    function openProfileModal() {
+      document.getElementById('profileUserName').innerText = currentUser.name;
+      document.getElementById('profileUserEmail').innerText = currentUser.email;
+
+      const list = document.getElementById('userOrdersList');
+      list.innerHTML = '';
+      userOrders.forEach(o => {
+        const item = document.createElement('div');
+        item.style.cssText = 'background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 10px; font-size: 13px;';
+        item.innerHTML = `
+          <div style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px;">
+            <span style="font-family: 'JetBrains Mono', monospace; color: var(--primary);">${o.id}</span>
+            <span style="color: #059669;">${o.status}</span>
+          </div>
+          <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 4px;">Дата: ${o.date} • Сумма: <strong>${o.total.toFixed(2)} BYN</strong></div>
+          <div style="font-size: 12.5px;">Состав: ${o.items}</div>
+        `;
+        list.appendChild(item);
+      });
+
+      document.getElementById('profileModal').classList.add('active');
+    }
+
+    function logoutUser() {
+      currentUser = null;
+      updateAuthUI();
+      closeModal('profileModal');
+      showToast("Вы успешно вышли из учетной записи.");
+    }
+
+    // ==========================================================================
+    // MODAL DIALOG HELPERS
+    // ==========================================================================
+    function openBookModal(bookId) {
+      const book = books.find(b => b.id === bookId);
+      const container = document.getElementById('bookModalContent');
+      container.innerHTML = `
+        <div style="flex: 1; min-width: 220px; height: 320px; background: ${book.coverBg}; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: #fff; text-align: center; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.25);">
+          <div>
+            <div style="color: var(--accent); font-weight: 700; margin-bottom: 8px; font-size: 11px; letter-spacing: 1px;">LITERA CLASSICS</div>
+            <h2 style="font-family: var(--font-display); font-size: 20px;">${book.title}</h2>
+            <p style="margin-top: 10px; font-size: 13px; opacity: 0.9;">${book.author}</p>
+          </div>
+        </div>
+        <div style="flex: 2; min-width: 280px;">
+          <span class="badge" style="background: var(--badge-bg); color: var(--badge-text); margin-bottom: 8px; display: inline-block;">${book.category}</span>
+          <h2 style="font-family: var(--font-display); margin-bottom: 6px; font-size: 22px;">${book.title}</h2>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 12px;">Автор: <strong>${book.author}</strong></p>
+          <p style="font-size: 13.5px; line-height: 1.6; margin-bottom: 16px;">${book.desc}</p>
+          <div style="background: var(--bg); padding: 12px; border-radius: var(--radius-md); font-size: 13px; margin-bottom: 18px; border: 1px solid var(--border);">
+            <div>• ISBN: <code style="font-family: 'JetBrains Mono', monospace;">${book.isbn}</code></div>
+            <div>• Объем: <strong>${book.pages} страниц</strong> (Твердый переплет 7БЦ)</div>
+            <div>• Наличие: <span style="color: #10B981; font-weight: 600;">${book.inStock ? 'В наличии на центральном складе' : (book.preorder ? 'Официальный предзаказ новинки' : 'Под заказ')}</span></div>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 22px; font-weight: 700; color: var(--primary);">${book.price.toFixed(2)} BYN</span>
+            <button class="btn-buy" onclick="addToCart(${book.id}); closeModal('bookModal');">${book.preorder ? 'Оформить предзаказ' : 'В корзину'}</button>
+            <button class="btn-action" style="color: var(--primary); border-color: var(--border);" onclick="openReaderModal(${book.id})">📖 Читать фрагмент</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('bookModal').classList.add('active');
+    }
+
+    function openReaderModal(bookId) {
+      closeModal('bookModal');
+      const book = books.find(b => b.id === bookId);
+      document.getElementById('readerTitle').innerText = book.title;
+      document.getElementById('readerAuthor').innerText = book.author;
+      document.getElementById('readerText').innerText = book.sample;
+      document.getElementById('readerBuyBtn').onclick = () => {
+        addToCart(book.id);
+        closeModal('readerModal');
+      };
+      document.getElementById('readerModal').classList.add('active');
+    }
+
+    function openCartDrawer() {
+      document.getElementById('cartModal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // ==========================================================================
+    // FILTER & SEARCH HANDLERS
+    // ==========================================================================
+    function filterCategory(cat, element) {
+      currentCategory = cat;
+      document.querySelectorAll('.subnav-link').forEach(l => l.classList.remove('active'));
+      element.classList.add('active');
+      document.getElementById('catalogHeading').innerText = cat === 'all' ? 'Каталог изданий' : cat;
+      renderCatalog();
+    }
+
+    function handleSearch(val) {
+      searchQuery = val;
+      // Sync inputs if user types in desktop or mobile input
+      document.getElementById('liveSearchInput').value = val;
+      const mInput = document.getElementById('mobileSearchInput');
+      if (mInput) mInput.value = val;
+      renderCatalog();
+    }
+
+    function updatePriceLabel(val) {
+      maxPrice = parseFloat(val);
+      document.getElementById('priceValLabel').innerText = `до ${val} BYN`;
+      renderCatalog();
+    }
+
+    function applyFilters() {
+      onlyInStock = document.getElementById('filterInStock').checked;
+      onlyPickup = document.getElementById('filterPickup').checked;
+      onlyPreorder = document.getElementById('filterPreorder').checked;
+      renderCatalog();
+    }
+
+    function sortBooks(type) {
+      if (type === 'price_asc') books.sort((a,b) => a.price - b.price);
+      else if (type === 'price_desc') books.sort((a,b) => b.price - a.price);
+      else if (type === 'rating') books.sort((a,b) => b.rating - a.rating);
+      renderCatalog();
+    }
+
+    function toggleMobileFilters() {
+      const sb = document.getElementById('filtersSidebar');
+      const icon = document.getElementById('filterToggleIcon');
+      sb.classList.toggle('mobile-open');
+      icon.innerText = sb.classList.contains('mobile-open') ? '▲' : '▼';
+    }
+
+    function toggleMobileSearch() {
+      const mb = document.getElementById('mobileSearchBar');
+      const isVisible = mb.style.display === 'block';
+      mb.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) {
+        document.getElementById('mobileSearchInput').focus();
+      }
+    }
+
+    // ==========================================================================
+    // SIMULATOR CONTROLS (THEMES, VIEWPORTS, MODULAR GRID)
+    // ==========================================================================
+    function switchTheme(theme) {
+      if (theme === 'oxford') {
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', theme);
+      }
+      showToast(`Применена: ${theme === 'oxford' ? 'Палитра А (Academic Oxford)' : (theme === 'nordic' ? 'Палитра Б (Nordic Slate & Mint)' : 'Палитра В (Vintage Terracotta)')}`);
+    }
+
+    function switchViewport(val) {
+      const frame = document.getElementById('viewportFrame');
+      frame.className = 'viewport-frame'; // reset
+      if (document.getElementById('gridBtn').classList.contains('proto-btn-active')) {
+        frame.classList.add('grid-active');
+      }
+
+      if (val === '100%') {
+        frame.style.maxWidth = '100%';
+      } else {
+        frame.style.maxWidth = val + 'px';
+        frame.classList.add(`viewport-${val}`);
+      }
+    }
+
+    function toggleGrid() {
+      const frame = document.getElementById('viewportFrame');
+      const btn = document.getElementById('gridBtn');
+      frame.classList.toggle('grid-active');
+      btn.classList.toggle('proto-btn-active');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    // Initial setup
+    renderCatalog();
+    updateCartUI();
+  </script>
+</body>
+</html>
