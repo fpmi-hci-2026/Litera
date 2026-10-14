@@ -7,7 +7,11 @@ Tests storage, tools, resources, prompts, business rules, and JSON-RPC protocol.
 from __future__ import annotations
 
 import json
+import os
+import sys
 import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from prompts import get_prompt_definitions, render_prompt
 from resources import get_resource_definitions, read_resource

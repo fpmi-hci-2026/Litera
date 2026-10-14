@@ -455,6 +455,7 @@ paths:
                   example: 3
       responses:
         '200':
+          description: Количество товара в корзине успешно обновлено
           content:
             application/json:
               schema:
@@ -476,6 +477,7 @@ paths:
             format: uuid
       responses:
         '200':
+          description: Товар успешно удален из корзины
           content:
             application/json:
               schema:
@@ -840,6 +842,7 @@ paths:
             format: uuid
       responses:
         '200':
+          description: Детальная информация о филиале
           content:
             application/json:
               schema:
