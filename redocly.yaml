@@ -1,0 +1,13 @@
+# Redocly configuration for Litera API
+extends:
+  - minimal
+
+rules:
+  # Do not require security on public endpoints (auth/register, catalog, etc.)
+  security-defined: off
+  # Localhost is valid for local development and docker-compose
+  no-server-example.com: off
+  # Allow standard endpoints that don't need synthetic 4xx
+  operation-4xx-response: off
+  # Allow unused auth schemes if configured for extensions
+  no-unused-components: off
